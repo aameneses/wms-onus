@@ -25,98 +25,163 @@ LOGO_C = _b64(os.path.join(ASSETS, "logo_color.png"))
 st.set_page_config(page_title="WMS · ONUS EXPRESS", page_icon="🚚",
                    layout="wide", initial_sidebar_state="expanded")
 
-# ─── CSS ONUS EXPRESS ────────────────────────────────────────
+# ─── CSS ONUS EXPRESS — Estilo Lovable ───────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=REM:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=REM:wght@300;400;500;600;700;800&family=Raleway:wght@700;800&display=swap');
 
-html, body, [class*="css"] { font-family:'REM',sans-serif !important; }
+html, body, [class*="css"] {
+    font-family:'REM',sans-serif !important;
+    background-color:#f8fafc !important;
+}
 
-/* Sidebar */
+/* ── Sidebar — Blanco como Lovable ── */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg,#000935 0%,#001560 100%) !important;
-    border-right: 2px solid #00C9CE;
+    background:#ffffff !important;
+    border-right:1px solid #e5e7eb !important;
 }
 [data-testid="stSidebar"] .stRadio label,
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span {
-    color:#e0f7f8 !important;
+    color:#374151 !important;
     font-family:'REM',sans-serif !important;
-    font-size:0.88rem !important;
+    font-size:0.9rem !important;
+}
+[data-testid="stSidebar"] .stRadio [aria-checked="true"] + div p {
+    color:#00C9CE !important;
+    font-weight:600 !important;
 }
 .sidebar-brand {
-    padding:1.2rem 1rem 0.8rem;
+    padding:1.5rem 1rem 1rem;
     text-align:center;
-    border-bottom:1px solid #00C9CE44;
-    margin-bottom:0.8rem;
+    border-bottom:1px solid #f3f4f6;
+    margin-bottom:0.5rem;
 }
-.sidebar-brand img { width:150px; max-width:90%; }
+.sidebar-brand img { width:120px; max-width:85%; }
 .sidebar-brand-text {
-    color:#00C9CE;
-    font-size:0.65rem;
+    color:#6b7280;
+    font-size:0.6rem;
     letter-spacing:3px;
     text-transform:uppercase;
-    margin-top:0.4rem;
+    margin-top:0.5rem;
     font-weight:600;
 }
 
-/* Header */
+/* ── Header — Estilo Lovable ── */
 .onus-header {
-    background: linear-gradient(135deg,#000935 0%,#001a6e 60%,#003080 100%);
-    padding:1.4rem 2rem 1.2rem;
-    border-radius:10px;
-    margin-bottom:1.2rem;
-    border-bottom:3px solid #00C9CE;
-    display:flex; flex-direction:column;
-    align-items:center; text-align:center; gap:0.4rem;
+    background:linear-gradient(135deg,#000935 0%,#001560 100%);
+    padding:1.5rem 2rem;
+    border-radius:12px;
+    margin-bottom:1.5rem;
+    display:flex;
+    align-items:center;
+    gap:1rem;
 }
-.onus-header img   { height:52px; }
-.onus-header-wms   { color:#00C9CE; font-size:0.75rem; font-weight:700;
-                     letter-spacing:3px; text-transform:uppercase; margin:0; }
-.onus-header-page  { color:#94b4d4; font-size:0.7rem; letter-spacing:2px;
-                     text-transform:uppercase; margin:0; }
+.onus-header img { height:44px; }
+.onus-header-texts { display:flex; flex-direction:column; }
+.onus-header-sup {
+    color:#00C9CE;
+    font-size:0.7rem;
+    font-weight:600;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    margin:0;
+}
+.onus-header-titulo {
+    color:#ffffff;
+    font-size:1.6rem;
+    font-weight:800;
+    font-family:'Raleway',sans-serif;
+    margin:0;
+    line-height:1.2;
+}
+.onus-header-sub {
+    color:#94b4d4;
+    font-size:0.78rem;
+    margin:0;
+}
 
-/* KPI */
+/* ── Main content background ── */
+.main .block-container {
+    background:#f8fafc !important;
+    padding-top:1.5rem !important;
+}
+
+/* ── KPI Cards — Estilo Lovable ── */
 .kpi-card {
-    background:#fff; border:1px solid #e0f7f8;
-    border-top:3px solid #00C9CE; border-radius:8px;
-    padding:1rem 1.2rem; text-align:center;
+    background:#ffffff;
+    border:1px solid #e5e7eb;
+    border-top:3px solid #00C9CE;
+    border-radius:12px;
+    padding:1.2rem 1.5rem;
+    text-align:left;
 }
-.kpi-value { font-size:1.9rem; font-weight:700; color:#000935; line-height:1; }
-.kpi-label { font-size:0.7rem; color:#5a6a85; margin-top:0.3rem;
-             text-transform:uppercase; letter-spacing:.7px; }
+.kpi-icon { font-size:1.5rem; margin-bottom:0.5rem; color:#00C9CE; }
+.kpi-label {
+    font-size:0.7rem;
+    color:#6b7280;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    font-weight:600;
+    margin-bottom:0.3rem;
+}
+.kpi-value { font-size:2rem; font-weight:700; color:#000935; line-height:1; }
 
-/* Section title */
+/* ── Section titles — Estilo Lovable ── */
 .sec-title {
-    font-size:1.05rem; font-weight:700; color:#000935;
-    padding:0.3rem 0; border-bottom:2px solid #00C9CE;
-    margin-bottom:0.9rem;
+    font-size:1.2rem;
+    font-weight:700;
+    color:#000935;
+    font-family:'Raleway',sans-serif;
+    padding:0.3rem 0;
+    border-bottom:2px solid #00C9CE;
+    margin-bottom:1rem;
 }
-.sec-sub { font-size:0.8rem; color:#5a6a85; margin:-0.6rem 0 0.9rem; }
+.sec-sub { font-size:0.82rem; color:#6b7280; margin:-0.6rem 0 1rem; }
 
-/* Forms */
+/* ── Forms ── */
 div[data-testid="stForm"] {
-    background:#f8fafc; border-radius:8px;
-    padding:1.2rem; border:1px solid #e2e8f0;
+    background:#ffffff;
+    border-radius:12px;
+    padding:1.5rem;
+    border:1px solid #e5e7eb;
+    box-shadow:0 1px 3px rgba(0,0,0,0.05);
 }
 .field-label {
-    font-size:0.78rem; font-weight:600; color:#000935;
-    text-transform:uppercase; letter-spacing:.5px;
+    font-size:0.78rem;
+    font-weight:600;
+    color:#374151;
+    text-transform:uppercase;
+    letter-spacing:.5px;
     margin-bottom:4px;
 }
 
-/* Buttons */
+/* ── Buttons — turquesa como Lovable ── */
 .stButton>button {
-    border-radius:6px; font-weight:600;
+    border-radius:8px;
+    font-weight:600;
     font-family:'REM',sans-serif;
-    background:#000935; color:white; border:none;
+    background:#00C9CE !important;
+    color:#000935 !important;
+    border:none;
+    padding:0.5rem 1.2rem;
+    transition:all 0.15s;
 }
-.stButton>button:hover { background:#00C9CE !important; color:#000935 !important; }
+.stButton>button:hover {
+    background:#000935 !important;
+    color:#ffffff !important;
+}
 
-/* Tabs */
+/* ── Tabs — Estilo Lovable ── */
 .stTabs [data-baseweb="tab"] {
-    background:#f0f9ff; border-radius:6px 6px 0 0;
-    font-family:'REM',sans-serif; font-size:0.82rem; color:#000935; font-weight:500;
+    background:#f3f4f6;
+    border-radius:8px 8px 0 0;
+    font-family:'REM',sans-serif;
+    font-size:0.85rem;
+    color:#374151;
+    font-weight:500;
+    border:1px solid #e5e7eb;
+    border-bottom:none;
 }
 .stTabs [aria-selected="true"] { background:#000935 !important; color:#00C9CE !important; }
 
@@ -201,14 +266,16 @@ def tar_opts():
 # ─── Header ──────────────────────────────────────────────────
 def header(pagina: str, subtitulo: str = ""):
     if LOGO_W:
-        logo_tag = f'<img src="data:image/png;base64,{LOGO_W}" style="height:52px;">'
+        logo_tag = f'<img src="data:image/png;base64,{LOGO_W}" style="height:44px;">'
     else:
-        logo_tag = '<span style="color:white;font-size:1.4rem;font-weight:800;letter-spacing:2px;">ONUS EXPRESS</span>'
-    sub_txt = pagina.upper() + (" &nbsp;·&nbsp; " + subtitulo.upper() if subtitulo else "")
+        logo_tag = '<span style="color:#00C9CE;font-size:1.2rem;font-weight:800;">ONUS</span>'
     st.markdown(f"""<div class="onus-header">
         {logo_tag}
-        <p class="onus-header-wms">WMS &nbsp;·&nbsp; ONUS EXPRESS</p>
-        <p class="onus-header-page">{sub_txt}</p>
+        <div class="onus-header-texts">
+            <p class="onus-header-sup">ONUS EXPRESS &nbsp;·&nbsp; WMS</p>
+            <p class="onus-header-titulo">{pagina}</p>
+            <p class="onus-header-sub">{subtitulo}</p>
+        </div>
     </div>""", unsafe_allow_html=True)
 
 def sec(titulo, subtitulo=""):
@@ -252,17 +319,21 @@ if pag == "Dashboard":
 
     c1,c2,c3,c4,c5 = st.columns(5)
     for col,val,label,icon in [
-        (c1, kpis["total_clientes"],           "Clientes activos",    "👥"),
-        (c2, kpis["pallets_activos"],           "Pallets en almacén",  "📦"),
-        (c3, kpis["ops_mes"],                   "Operaciones este mes", "⚡"),
-        (c4, f"{kpis['facturacion_mes']:,.2f}€","Facturación mes",     "📈"),
-        (c5, f"{kpis['total_facturado']:,.2f}€","Facturación total",   "💰"),
+        (c1, kpis["total_clientes"],           "Clientes",            "👥"),
+        (c2, kpis["pallets_activos"],           "Pallets activos",     "📦"),
+        (c3, kpis["ops_mes"],                   "Operaciones",         "⚡"),
+        (c4, f"{kpis['facturacion_mes']:,.2f}€","Facturado · Mes",    "📈"),
+        (c5, f"{kpis['total_facturado']:,.2f}€","Facturación total",  "💰"),
     ]:
         with col:
             st.markdown(f"""<div class="kpi-card">
-                <div style="font-size:1.4rem">{icon}</div>
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-label">{label}</div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <div class="kpi-label">{label}</div>
+                        <div class="kpi-value">{val}</div>
+                    </div>
+                    <div style="font-size:1.6rem;color:#00C9CE;opacity:0.8">{icon}</div>
+                </div>
             </div>""", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
