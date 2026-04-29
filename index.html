@@ -1616,8 +1616,11 @@ const Dashboard = ({ goTo }) => {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Buenos días, Andrés</h1>
-          <p className="lead">Resumen del almacén · Miércoles, 29 de abril de 2026</p>
+          <h1>Buenos días, {(() => {
+            const u = window._wmsUser?.email?.split("@")[0] || "Andrés";
+            return u.charAt(0).toUpperCase() + u.slice(1);
+          })()}</h1>
+          <p className="lead">Resumen del almacén · {new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
         </div>
         <div className="page-actions">
           <button className="btn btn-ghost"><Icon name="download"/> Exportar</button>
