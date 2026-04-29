@@ -819,295 +819,135 @@ input, select, textarea { font-family: inherit; }
 <script type="text/babel" data-presets="react">
 
 // ===== data.jsx =====
-// ============================================================
-// Onus WMS — Capa de datos con Supabase
-// ============================================================
+// Datos semilla — basados en schema.sql, expandidos para realismo
+const TARIFAS = [
+  { id: 1, nombre: "Tarifa Básica",   precio_pallet_dia: 0.50, precio_picking: 1.20, precio_carga: 25.00, precio_descarga: 25.00, clientes_asignados: 2 },
+  { id: 2, nombre: "Tarifa Estándar", precio_pallet_dia: 0.75, precio_picking: 1.80, precio_carga: 35.00, precio_descarga: 35.00, clientes_asignados: 2 },
+  { id: 3, nombre: "Tarifa Premium",  precio_pallet_dia: 1.20, precio_picking: 2.50, precio_carga: 50.00, precio_descarga: 50.00, clientes_asignados: 1 },
+  { id: 4, nombre: "Tarifa Especial", precio_pallet_dia: 0.60, precio_picking: 1.50, precio_carga: 30.00, precio_descarga: 28.00, clientes_asignados: 0 },
+];
 
-const SUPABASE_URL = "https://wwlsewypxbxobhweyqbv.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3bHNld3lweGJ4b2Jod2V5cWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NTI1MDMsImV4cCI6MjA5MzAyODUwM30.xuOLi_EWQd9V2yowmpnX8ZL81EVdgfbe608itR110O0";
+const CLIENTES = [
+  { id: 1, nombre: "Carlos Martínez",  empresa: "Logística Sur S.L.",     pago: "30 días neto", tarifa_id: 1, email: "carlos@logisticasur.com",  telefono: "654 321 098", pallets_activos: 32, facturado_mes: 2840.50 },
+  { id: 2, nombre: "Ana García",       empresa: "Distribuciones Norte",    pago: "15 días neto", tarifa_id: 2, email: "ana@distnorte.com",        telefono: "612 456 789", pallets_activos: 18, facturado_mes: 4120.00 },
+  { id: 3, nombre: "Pedro Fernández",  empresa: "Almacenes Ibéricos S.A.", pago: "Contado",      tarifa_id: 3, email: "pedro@almiberi.com",       telefono: "699 123 456", pallets_activos: 47, facturado_mes: 8650.75 },
+  { id: 4, nombre: "Laura Sánchez",    empresa: "Grupo Logístico XYZ",     pago: "60 días neto", tarifa_id: 2, email: "laura@grupoxyz.com",       telefono: "677 890 123", pallets_activos: 12, facturado_mes: 1980.25 },
+  { id: 5, nombre: "Miguel Torres",    empresa: "Fast Delivery S.L.",      pago: "30 días neto", tarifa_id: 1, email: "miguel@fastdelivery.com",  telefono: "611 234 567", pallets_activos: 8,  facturado_mes: 1240.00 },
+];
 
-// ── Cliente Supabase ligero (sin SDK) ───────────────────────
-const sb = {
-  headers: {
-    "apikey": SUPABASE_KEY,
-    "Authorization": `Bearer ${SUPABASE_KEY}`,
-    "Content-Type": "application/json",
-    "Prefer": "return=representation",
-  },
+const empresaPorCliente = (id) => CLIENTES.find(c => c.id === id)?.empresa || "—";
+const nombrePorCliente  = (id) => CLIENTES.find(c => c.id === id)?.nombre  || "—";
 
-  async get(table, params = "") {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${params}`, { headers: this.headers });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
+// Stock — pallets activos en almacén
+const STOCK = [
+  { id: 1,  cliente_id: 1, pallet: "PAL-00142", referencia: "REF-A100", sku: "SKU-77821", cantidad: 48, fecha_entrada: "2026-04-14", fecha_salida: null, activo: true,  ubicacion: "A-12-03", barcode: "8412345000142" },
+  { id: 2,  cliente_id: 1, pallet: "PAL-00143", referencia: "REF-A101", sku: "SKU-77822", cantidad: 36, fecha_entrada: "2026-04-19", fecha_salida: null, activo: true,  ubicacion: "A-12-04", barcode: "8412345000159" },
+  { id: 3,  cliente_id: 2, pallet: "PAL-00144", referencia: "REF-B200", sku: "SKU-44012", cantidad: 24, fecha_entrada: "2026-04-21", fecha_salida: null, activo: true,  ubicacion: "B-04-11", barcode: "8412345000166" },
+  { id: 4,  cliente_id: 2, pallet: "PAL-00145", referencia: "REF-B201", sku: "SKU-44013", cantidad: 60, fecha_entrada: "2026-04-21", fecha_salida: null, activo: true,  ubicacion: "B-04-12", barcode: "8412345000173" },
+  { id: 5,  cliente_id: 3, pallet: "PAL-00146", referencia: "REF-C300", sku: "SKU-91100", cantidad: 12, fecha_entrada: "2026-04-09", fecha_salida: null, activo: true,  ubicacion: "C-08-01", barcode: "8412345000180" },
+  { id: 6,  cliente_id: 3, pallet: "PAL-00147", referencia: "REF-C301", sku: "SKU-91101", cantidad: 84, fecha_entrada: "2026-04-24", fecha_salida: null, activo: true,  ubicacion: "C-08-02", barcode: "8412345000197" },
+  { id: 7,  cliente_id: 3, pallet: "PAL-00148", referencia: "REF-C302", sku: "SKU-91102", cantidad: 30, fecha_entrada: "2026-04-25", fecha_salida: null, activo: true,  ubicacion: "C-08-03", barcode: "8412345000203" },
+  { id: 8,  cliente_id: 4, pallet: "PAL-00149", referencia: "REF-D400", sku: "SKU-21090", cantidad: 18, fecha_entrada: "2026-04-26", fecha_salida: null, activo: true,  ubicacion: "D-02-07", barcode: "8412345000210" },
+  { id: 9,  cliente_id: 5, pallet: "PAL-00150", referencia: "REF-E500", sku: "SKU-66501", cantidad: 22, fecha_entrada: "2026-04-17", fecha_salida: null, activo: true,  ubicacion: "E-01-09", barcode: "8412345000227" },
+  { id: 10, cliente_id: 1, pallet: "PAL-00151", referencia: "REF-A102", sku: "SKU-77823", cantidad: 40, fecha_entrada: "2026-04-22", fecha_salida: null, activo: true,  ubicacion: "A-12-05", barcode: "8412345000234" },
+  { id: 11, cliente_id: 3, pallet: "PAL-00152", referencia: "REF-C303", sku: "SKU-91103", cantidad: 50, fecha_entrada: "2026-04-12", fecha_salida: null, activo: true,  ubicacion: "C-08-04", barcode: "8412345000241" },
+  { id: 12, cliente_id: 2, pallet: "PAL-00153", referencia: "REF-B202", sku: "SKU-44014", cantidad: 28, fecha_entrada: "2026-04-26", fecha_salida: null, activo: true,  ubicacion: "B-04-13", barcode: "8412345000258" },
+  { id: 13, cliente_id: 5, pallet: "PAL-00154", referencia: "REF-E501", sku: "SKU-66502", cantidad: 14, fecha_entrada: "2026-04-15", fecha_salida: "2026-04-27", activo: false, ubicacion: "—", barcode: "8412345000265" },
+  { id: 14, cliente_id: 3, pallet: "PAL-00155", referencia: "REF-C304", sku: "SKU-91104", cantidad: 72, fecha_entrada: "2026-04-08", fecha_salida: null, activo: true,  ubicacion: "C-08-05", barcode: "8412345000272" },
+  { id: 15, cliente_id: 4, pallet: "PAL-00156", referencia: "REF-D401", sku: "SKU-21091", cantidad: 16, fecha_entrada: "2026-04-26", fecha_salida: null, activo: true,  ubicacion: "D-02-08", barcode: "8412345000289" },
+];
 
-  async post(table, body) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-      method: "POST", headers: this.headers, body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
+// Movimientos — historial de operaciones
+const MOVIMIENTOS = [
+  { id: 101, cliente_id: 3, tipo: "descarga",   cantidad: 12, fecha: "2026-04-29", obs: "Recepción urgente lote C", coste: 600.00, hora: "09:14" },
+  { id: 102, cliente_id: 1, tipo: "picking",    cantidad: 20, fecha: "2026-04-29", obs: "Pedido #1042",            coste: 24.00,  hora: "10:32" },
+  { id: 103, cliente_id: 2, tipo: "carga",      cantidad: 4,  fecha: "2026-04-29", obs: "Expedición #2018",         coste: 140.00, hora: "11:45" },
+  { id: 104, cliente_id: 3, tipo: "packing",    cantidad: 35, fecha: "2026-04-28", obs: "Empaquetado pedidos",      coste: 87.50,  hora: "08:50" },
+  { id: 105, cliente_id: 4, tipo: "descarga",   cantidad: 3,  fecha: "2026-04-28", obs: "Recepción programada",     coste: 84.00,  hora: "13:20" },
+  { id: 106, cliente_id: 5, tipo: "almacenaje", cantidad: 22, fecha: "2026-04-28", obs: "Almacenaje inicial E",     coste: 13.20,  hora: "14:15" },
+  { id: 107, cliente_id: 1, tipo: "almacenaje", cantidad: 48, fecha: "2026-04-27", obs: "Almacenaje pallets A",     coste: 24.00,  hora: "09:00" },
+  { id: 108, cliente_id: 2, tipo: "picking",    cantidad: 30, fecha: "2026-04-27", obs: "Pedido masivo #2017",      coste: 54.00,  hora: "10:10" },
+  { id: 109, cliente_id: 3, tipo: "carga",      cantidad: 8,  fecha: "2026-04-27", obs: "Expedición premium",       coste: 400.00, hora: "15:40" },
+  { id: 110, cliente_id: 5, tipo: "carga",      cantidad: 6,  fecha: "2026-04-27", obs: "Expedición completa",      coste: 150.00, hora: "16:25" },
+  { id: 111, cliente_id: 1, tipo: "descarga",   cantidad: 5,  fecha: "2026-04-26", obs: "Recepción lote A",         coste: 125.00, hora: "08:30" },
+  { id: 112, cliente_id: 4, tipo: "almacenaje", cantidad: 18, fecha: "2026-04-26", obs: "Almacenaje D",             coste: 13.50,  hora: "11:00" },
+  { id: 113, cliente_id: 3, tipo: "almacenaje", cantidad: 84, fecha: "2026-04-26", obs: "Stock semanal C",          coste: 100.80, hora: "12:30" },
+  { id: 114, cliente_id: 2, tipo: "descarga",   cantidad: 8,  fecha: "2026-04-25", obs: "Recepción mercancía",      coste: 280.00, hora: "09:45" },
+  { id: 115, cliente_id: 1, tipo: "picking",    cantidad: 15, fecha: "2026-04-25", obs: "Pedido #1041",             coste: 18.00,  hora: "14:00" },
+  { id: 116, cliente_id: 3, tipo: "picking",    cantidad: 35, fecha: "2026-04-24", obs: "Picking masivo C",         coste: 87.50,  hora: "10:20" },
+  { id: 117, cliente_id: 5, tipo: "descarga",   cantidad: 6,  fecha: "2026-04-24", obs: "Descarga programada",      coste: 150.00, hora: "13:00" },
+];
 
-  async patch(table, id, body) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-      method: "PATCH", headers: this.headers, body: JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
-  },
-
-  async delete(table, id) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
-      method: "DELETE", headers: this.headers,
-    });
-    if (!r.ok) throw new Error(await r.text());
-    return true;
-  },
-
-  // Auth
-  async signIn(email, password) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error_description || data.message || "Error de autenticación");
-    return data;
-  },
-
-  async signUp(email, password) {
-    const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-      method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error_description || data.message || "Error");
-    return data;
-  },
-
-  async signOut(token) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
-      method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${token}` },
-    });
-  },
-
-  withAuth(token) {
-    return {
-      ...this,
-      headers: { ...this.headers, "Authorization": `Bearer ${token}` },
-    };
-  },
+// KPIs derivados (precalculados para el dashboard)
+const KPI_HOY = {
+  ops_hoy: 3,
+  delta_ops: "+2 vs ayer",
+  pallets_activos: 117,
+  delta_pallets: "+12 esta semana",
+  ingresos_hoy: 764.00,
+  delta_ingresos: "+18% vs media",
+  clientes_activos: 5,
+  ocupacion: 68, // %
 };
 
-// ── Helpers de formato ──────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n || 0);
-const fmtN = (n) => new Intl.NumberFormat("es-ES").format(n || 0);
+// Serie 14 días para el chart
+const SERIE_14D = [
+  { d: "16",  alm: 28, pic: 12, car: 4 },
+  { d: "17",  alm: 32, pic: 18, car: 6 },
+  { d: "18",  alm: 30, pic: 14, car: 5 },
+  { d: "19",  alm: 36, pic: 22, car: 8 },
+  { d: "20",  alm: 34, pic: 16, car: 7 },
+  { d: "21",  alm: 40, pic: 24, car: 9 },
+  { d: "22",  alm: 38, pic: 20, car: 6 },
+  { d: "23",  alm: 42, pic: 28, car: 11 },
+  { d: "24",  alm: 46, pic: 35, car: 8 },
+  { d: "25",  alm: 44, pic: 30, car: 12 },
+  { d: "26",  alm: 50, pic: 26, car: 14 },
+  { d: "27",  alm: 48, pic: 38, car: 10 },
+  { d: "28",  alm: 52, pic: 42, car: 13 },
+  { d: "29",  alm: 56, pic: 45, car: 15 },
+];
+
+// Distribución por tipo (mes)
+const DIST_TIPOS = [
+  { tipo: "almacenaje", count: 312, pct: 44, color: "var(--accent)" },
+  { tipo: "picking",    count: 184, pct: 26, color: "#5b8def" },
+  { tipo: "descarga",   count: 96,  pct: 14, color: "#a78bfa" },
+  { tipo: "carga",      count: 78,  pct: 11, color: "#f59e0b" },
+  { tipo: "packing",    count: 38,  pct: 5,  color: "#ec4899" },
+];
+
+const TIPO_OP = {
+  almacenaje: { label: "Almacenaje", color: "var(--accent)",  icon: "■" },
+  picking:    { label: "Picking",    color: "#5b8def",        icon: "▲" },
+  packing:    { label: "Packing",    color: "#ec4899",        icon: "◆" },
+  carga:      { label: "Carga",      color: "#f59e0b",        icon: "↑" },
+  descarga:   { label: "Descarga",   color: "#a78bfa",        icon: "↓" },
+};
+
+// Facturación mensual por cliente — última 6 meses
+const FACT_MENSUAL = [
+  { mes: "Nov", total: 14200 },
+  { mes: "Dic", total: 16850 },
+  { mes: "Ene", total: 15420 },
+  { mes: "Feb", total: 17910 },
+  { mes: "Mar", total: 18650 },
+  { mes: "Abr", total: 18831 },
+];
+
+const fmt = (n) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
+const fmtN = (n) => new Intl.NumberFormat("es-ES").format(n);
 const fmtFecha = (s) => {
   if (!s) return "—";
-  const [y,m,d] = s.split("T")[0].split("-");
+  const [y,m,d] = s.split("-");
   return `${d}/${m}/${y.slice(2)}`;
 };
 
-const TIPO_OP = {
-  almacenaje:           { label: "Almacenaje",    color: "var(--accent)", icon: "■" },
-  picking:              { label: "Picking",        color: "#5b8def",      icon: "▲" },
-  empaquetado:          { label: "Empaquetado",    color: "#ec4899",      icon: "◆" },
-  carga:                { label: "Carga",          color: "#f59e0b",      icon: "↑" },
-  descarga:             { label: "Descarga",       color: "#a78bfa",      icon: "↓" },
-  "distribucion-interna": { label: "Dist. Interna", color: "#10b981",    icon: "→" },
-  "distribucion-externa": { label: "Dist. Externa", color: "#06b6d4",    icon: "✈" },
-};
+Object.assign(window, {
+  TARIFAS, CLIENTES, STOCK, MOVIMIENTOS, KPI_HOY, SERIE_14D, DIST_TIPOS, TIPO_OP, FACT_MENSUAL,
+  empresaPorCliente, nombrePorCliente, fmt, fmtN, fmtFecha,
+});
 
-// ── Context global de datos ─────────────────────────────────
-const DataContext = React.createContext(null);
-
-const DataProvider = ({ children, authToken }) => {
-  const [clientes, setClientes] = React.useState([]);
-  const [tarifas, setTarifas] = React.useState([]);
-  const [movimientos, setMovimientos] = React.useState([]);
-  const [stock, setStock] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(null);
-
-  const api = authToken ? sb.withAuth(authToken) : sb;
-
-  const loadAll = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [cls, trs, movs, stk] = await Promise.all([
-        api.get("clientes", "?select=*,tarifas(nombre)&order=empresa"),
-        api.get("tarifas", "?select=*&order=nombre"),
-        api.get("movimientos", "?select=*,clientes(nombre,empresa)&order=created_at.desc&limit=200"),
-        api.get("stock", "?select=*,clientes(nombre,empresa)&order=fecha_entrada.desc"),
-      ]);
-      setClientes(cls);
-      setTarifas(trs);
-      setMovimientos(movs);
-      setStock(stk);
-    } catch(e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  React.useEffect(() => { loadAll(); }, [authToken]);
-
-  // ── CRUD helpers ────────────────────────────────────────
-  const createCliente = async (data) => {
-    await api.post("clientes", data);
-    await loadAll();
-  };
-  const updateCliente = async (id, data) => {
-    await api.patch("clientes", id, data);
-    await loadAll();
-  };
-  const deleteCliente = async (id) => {
-    await api.delete("clientes", id);
-    await loadAll();
-  };
-
-  const createTarifa = async (data) => {
-    await api.post("tarifas", data);
-    await loadAll();
-  };
-  const deleteTarifa = async (id) => {
-    await api.delete("tarifas", id);
-    await loadAll();
-  };
-
-  const createMovimiento = async (data) => {
-    // Calcular coste automáticamente
-    const cliente = clientes.find(c => c.id === data.cliente_id);
-    const tarifa = tarifas.find(t => t.id === cliente?.tarifa_id);
-    let coste = 0;
-    if (tarifa) {
-      const precio = {
-        almacenaje: tarifa.precio_pallet_dia,
-        picking: tarifa.precio_picking,
-        empaquetado: tarifa.precio_picking,
-        carga: tarifa.precio_carga,
-        descarga: tarifa.precio_descarga,
-        "distribucion-interna": tarifa.precio_picking,
-        "distribucion-externa": tarifa.precio_picking,
-      }[data.tipo] || 0;
-      const fijo = ["carga","descarga"].includes(data.tipo);
-      coste = fijo ? parseFloat(precio) : parseFloat(precio) * parseFloat(data.cantidad);
-    }
-    await api.post("movimientos", { ...data, coste });
-    await loadAll();
-  };
-  const deleteMovimiento = async (id) => {
-    await api.delete("movimientos", id);
-    await loadAll();
-  };
-
-  const createStock = async (data) => {
-    await api.post("stock", data);
-    await loadAll();
-  };
-  const darSalidaPallet = async (id, fecha_salida) => {
-    await api.patch("stock", id, { activo: false, fecha_salida });
-    await loadAll();
-  };
-
-  // ── KPIs derivados ──────────────────────────────────────
-  const hoy = new Date().toISOString().split("T")[0];
-  const primerDiaMes = hoy.slice(0,7) + "-01";
-
-  const kpis = React.useMemo(() => {
-    const palletsActivos = stock.filter(s => s.activo).length;
-    const movsMes = movimientos.filter(m => m.fecha >= primerDiaMes);
-    const movHoy = movimientos.filter(m => m.fecha === hoy);
-    const ingresosMes = movsMes.reduce((s,m) => s + parseFloat(m.coste||0), 0);
-    const ingresosHoy = movHoy.reduce((s,m) => s + parseFloat(m.coste||0), 0);
-    const clientesActivos = new Set(stock.filter(s=>s.activo).map(s=>s.cliente_id)).size;
-    return {
-      ops_hoy: movHoy.length,
-      pallets_activos: palletsActivos,
-      ingresos_hoy: ingresosHoy,
-      ingresos_mes: ingresosMes,
-      clientes_activos: clientesActivos,
-      ops_mes: movsMes.length,
-    };
-  }, [movimientos, stock]);
-
-  // ── Serie 14 días ───────────────────────────────────────
-  const serie14d = React.useMemo(() => {
-    const dias = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const key = d.toISOString().split("T")[0];
-      const label = String(d.getDate());
-      const movsDia = movimientos.filter(m => m.fecha === key);
-      dias.push({
-        d: label,
-        alm: movsDia.filter(m => m.tipo === "almacenaje").reduce((s,m)=>s+parseFloat(m.cantidad||0),0),
-        pic: movsDia.filter(m => ["picking","empaquetado"].includes(m.tipo)).reduce((s,m)=>s+parseFloat(m.cantidad||0),0),
-        car: movsDia.filter(m => ["carga","descarga"].includes(m.tipo)).reduce((s,m)=>s+parseFloat(m.cantidad||0),0),
-      });
-    }
-    return dias;
-  }, [movimientos]);
-
-  // ── Distribución por tipo ───────────────────────────────
-  const distTipos = React.useMemo(() => {
-    const mesActual = movimientos.filter(m => m.fecha >= primerDiaMes);
-    const total = mesActual.length || 1;
-    const counts = {};
-    mesActual.forEach(m => counts[m.tipo] = (counts[m.tipo]||0)+1);
-    const colors = { almacenaje:"var(--accent)", picking:"#5b8def", descarga:"#a78bfa", carga:"#f59e0b", empaquetado:"#ec4899", "distribucion-interna":"#10b981", "distribucion-externa":"#06b6d4" };
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([tipo,count]) => ({
-      tipo, count, pct: Math.round(count/total*100), color: colors[tipo]||"var(--accent)"
-    }));
-  }, [movimientos]);
-
-  // ── Top clientes ────────────────────────────────────────
-  const topClientes = React.useMemo(() => {
-    const mesActual = movimientos.filter(m => m.fecha >= primerDiaMes);
-    const porCliente = {};
-    mesActual.forEach(m => {
-      if (!porCliente[m.cliente_id]) porCliente[m.cliente_id] = { total: 0, pallets: 0 };
-      porCliente[m.cliente_id].total += parseFloat(m.coste||0);
-    });
-    stock.filter(s=>s.activo).forEach(s => {
-      if (!porCliente[s.cliente_id]) porCliente[s.cliente_id] = { total: 0, pallets: 0 };
-      porCliente[s.cliente_id].pallets++;
-    });
-    return clientes
-      .map(c => ({ ...c, facturado_mes: porCliente[c.id]?.total||0, pallets_activos: porCliente[c.id]?.pallets||0 }))
-      .sort((a,b) => b.facturado_mes - a.facturado_mes)
-      .slice(0, 6);
-  }, [clientes, movimientos, stock]);
-
-  const empresaPorCliente = (id) => clientes.find(c=>c.id===id)?.empresa || "—";
-  const nombrePorCliente  = (id) => clientes.find(c=>c.id===id)?.nombre  || "—";
-
-  return (
-    <DataContext.Provider value={{
-      clientes, tarifas, movimientos, stock,
-      loading, error, reload: loadAll,
-      kpis, serie14d, distTipos, topClientes,
-      empresaPorCliente, nombrePorCliente,
-      createCliente, updateCliente, deleteCliente,
-      createTarifa, deleteTarifa,
-      createMovimiento, deleteMovimiento,
-      createStock, darSalidaPallet,
-      fmt, fmtN, fmtFecha, TIPO_OP,
-    }}>
-      {children}
-    </DataContext.Provider>
-  );
-};
-
-const useData = () => React.useContext(DataContext);
-
-Object.assign(window, { useData, DataProvider, DataContext, fmt, fmtN, fmtFecha, TIPO_OP, sb });
 
 // ===== tweaks-panel.jsx =====
 
@@ -1620,16 +1460,12 @@ const Sidebar = ({ active, onNav, collapsed }) => (
         ))}
       </React.Fragment>
     ))}
-    <div className="sidebar-foot" style={{cursor:"default"}}>
-      <div className="avatar">{session?.user?.email?.[0]?.toUpperCase()||"U"}</div>
-      <div className="who" style={{flex:1,minWidth:0}}>
-        <div className="n">{session?.user?.email?.split("@")[0]||"Usuario"}</div>
-        <div className="r">Onus WMS</div>
+    <div className="sidebar-foot">
+      <div className="avatar">AM</div>
+      <div className="who">
+        <div className="n">Alejandro Meneses</div>
+        <div className="r">Administrador · Madrid</div>
       </div>
-      {onLogout && <button onClick={onLogout} title="Cerrar sesión"
-        style={{background:"transparent",border:"none",color:"var(--fg-3)",cursor:"pointer",padding:"4px 6px",borderRadius:6,fontSize:16}}
-        onMouseEnter={e=>e.target.style.color="var(--danger)"}
-        onMouseLeave={e=>e.target.style.color="var(--fg-3)"}>⏻</button>}
     </div>
   </aside>
 );
@@ -2901,7 +2737,7 @@ Object.assign(window, { Perfiles, PerfilDrawer, PERFILES, ROLES });
 // Onus WMS — App principal
 // ============================================================
 
-const App = ({ session, onLogout }) => {
+const App = () => {
   const [tweaks, setTweak] = useTweaks(/*EDITMODE-BEGIN*/{
     "theme": "dark",
     "density": "balanced",
@@ -3010,136 +2846,7 @@ const App = ({ session, onLogout }) => {
   );
 };
 
-
-// ============================================================
-// Auth + Root wrapper — conectado a Supabase
-// ============================================================
-
-const AUTH_KEY = "onus_wms_session";
-const saveSession = (s) => { try { localStorage.setItem(AUTH_KEY, JSON.stringify(s)); } catch(e){} };
-const loadSession = () => { try { return JSON.parse(localStorage.getItem(AUTH_KEY)||"null"); } catch(e){ return null; } };
-const clearSession = () => { try { localStorage.removeItem(AUTH_KEY); } catch(e){} };
-
-const LoginScreen = ({ onLogin }) => {
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [mode, setMode] = React.useState("login");
-
-  const handle = async (e) => {
-    e.preventDefault();
-    setLoading(true); setError("");
-    try {
-      const data = mode === "login"
-        ? await sb.signIn(email, password)
-        : await sb.signUp(email, password);
-      if (mode === "register" && data.user && !data.session) {
-        setError("Revisa tu email para confirmar la cuenta."); setLoading(false); return;
-      }
-      if (data.access_token) { saveSession(data); onLogin(data); }
-      else setError(data.error_description || data.message || "Credenciales incorrectas");
-    } catch(e) { setError(e.message); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div style={{minHeight:"100vh",background:"#030712",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"REM,sans-serif"}}>
-      <div style={{width:380,background:"#111827",border:"1px solid #1d2638",borderRadius:16,padding:"36px 32px",boxShadow:"0 24px 64px rgba(0,0,0,.5)"}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{width:52,height:52,borderRadius:12,background:"linear-gradient(135deg,#000935,#001560)",border:"1px solid #1d2638",display:"grid",placeItems:"center",margin:"0 auto 12px"}}>
-            <span style={{color:"#00C9CE",fontFamily:"Raleway,sans-serif",fontWeight:800,fontSize:22}}>O</span>
-          </div>
-          <div style={{fontFamily:"Raleway,sans-serif",fontWeight:800,fontSize:20,color:"#fff"}}>Onus WMS</div>
-          <div style={{fontSize:12,color:"#6b7280",marginTop:4}}>Warehouse Management System</div>
-        </div>
-        <form onSubmit={handle}>
-          {["email","password"].map(field => (
-            <div key={field} style={{marginBottom:field==="email"?14:20}}>
-              <label style={{display:"block",fontSize:11,fontWeight:600,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>{field==="email"?"Email":"Contraseña"}</label>
-              <input type={field} value={field==="email"?email:password}
-                onChange={e=>field==="email"?setEmail(e.target.value):setPassword(e.target.value)}
-                required placeholder={field==="email"?"tu@email.com":"••••••••"}
-                style={{width:"100%",boxSizing:"border-box",background:"#161f30",border:"1px solid #1d2638",borderRadius:8,padding:"10px 12px",color:"#fff",fontSize:14,fontFamily:"inherit",outline:"none"}}/>
-            </div>
-          ))}
-          {error && <div style={{background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#ef4444",marginBottom:14}}>{error}</div>}
-          <button type="submit" disabled={loading} style={{width:"100%",padding:11,borderRadius:8,border:"none",background:"#00C9CE",color:"#000935",fontWeight:700,fontSize:14,fontFamily:"inherit",cursor:loading?"wait":"pointer",opacity:loading?.7:1}}>
-            {loading?"Entrando…":mode==="login"?"Entrar al WMS":"Crear cuenta"}
-          </button>
-        </form>
-        <div style={{textAlign:"center",marginTop:16}}>
-          <button onClick={()=>{setMode(mode==="login"?"register":"login");setError("");}}
-            style={{background:"none",border:"none",color:"#6b7280",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
-            {mode==="login"?"¿Sin cuenta? Regístrate":"¿Ya tienes cuenta? Entra"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const Root = () => {
-  const [session, setSession] = React.useState(() => loadSession());
-  const handleLogin = (s) => { saveSession(s); setSession(s); };
-  const handleLogout = async () => {
-    if (session?.access_token) { try { await sb.signOut(session.access_token); } catch(e){} }
-    clearSession(); setSession(null);
-  };
-  if (!session?.access_token) return <LoginScreen onLogin={handleLogin}/>;
-  return (
-    <DataProvider authToken={session.access_token}>
-      <AppWithData session={session} onLogout={handleLogout}/>
-    </DataProvider>
-  );
-};
-
-const AppWithData = ({ session, onLogout }) => {
-  const { loading, error, reload, clientes, tarifas, movimientos, stock,
-    kpis, serie14d, distTipos, topClientes,
-    empresaPorCliente, nombrePorCliente, fmt, fmtN, fmtFecha, TIPO_OP } = useData();
-
-  React.useEffect(() => {
-    if (loading) return;
-    Object.assign(window, {
-      CLIENTES: (clientes||[]).map(c=>({...c, pago:c.condiciones_pago, tarifa_id:c.tarifa_id,
-        pallets_activos:(stock||[]).filter(s=>s.activo&&s.cliente_id===c.id).length,
-        facturado_mes:(movimientos||[]).filter(m=>m.cliente_id===c.id&&m.fecha>=(new Date().toISOString().slice(0,7)+"-01")).reduce((s,m)=>s+parseFloat(m.coste||0),0)})),
-      TARIFAS: (tarifas||[]).map(t=>({...t, clientes_asignados:(clientes||[]).filter(c=>c.tarifa_id===t.id).length})),
-      MOVIMIENTOS: (movimientos||[]).map(m=>({...m,empresa:m.clientes?.empresa||"—",obs:m.observaciones||"",hora:m.created_at?m.created_at.slice(11,16):""})),
-      STOCK: (stock||[]).map(s=>({...s,ubicacion:s.observaciones||"—",barcode:s.pallet,sku:s.referencia||"—"})),
-      KPI_HOY:{
-        ops_hoy:kpis.ops_hoy, delta_ops:"", pallets_activos:kpis.pallets_activos, delta_pallets:"",
-        ingresos_hoy:kpis.ingresos_hoy, delta_ingresos:"", clientes_activos:kpis.clientes_activos,
-        ocupacion:Math.min(Math.round((kpis.pallets_activos/200)*100),100),
-      },
-      SERIE_14D: serie14d||[], DIST_TIPOS: distTipos||[], TIPO_OP, FACT_MENSUAL:[],
-      empresaPorCliente, nombrePorCliente, fmt, fmtN, fmtFecha,
-    });
-  }, [loading, clientes, tarifas, movimientos, stock, kpis, serie14d, distTipos]);
-
-  if (loading) return (
-    <div style={{minHeight:"100vh",background:"#030712",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,fontFamily:"REM,sans-serif"}}>
-      <div style={{width:40,height:40,borderRadius:"50%",border:"3px solid #1d2638",borderTopColor:"#00C9CE",animation:"spin .8s linear infinite"}}/>
-      <div style={{color:"#6b7280",fontSize:14}}>Cargando datos del almacén…</div>
-      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-    </div>
-  );
-  if (error) return (
-    <div style={{minHeight:"100vh",background:"#030712",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"REM,sans-serif"}}>
-      <div style={{background:"#111827",border:"1px solid #1d2638",borderRadius:12,padding:32,maxWidth:400,textAlign:"center"}}>
-        <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#ef4444",marginBottom:16,fontSize:14}}>{error}</div>
-        <button onClick={reload} style={{background:"#00C9CE",color:"#000935",border:"none",borderRadius:8,padding:"10px 20px",fontWeight:700,cursor:"pointer"}}>Reintentar</button>
-        <button onClick={onLogout} style={{background:"transparent",color:"#6b7280",border:"1px solid #1d2638",borderRadius:8,padding:"10px 20px",fontWeight:600,cursor:"pointer",marginLeft:8}}>Salir</button>
-      </div>
-    </div>
-  );
-  return <App session={session} onLogout={onLogout}/>;
-};
-
-
-ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 
 
 </script>
