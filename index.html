@@ -973,6 +973,106 @@ Object.assign(window, {
   sbGet, sbPost, sbPatch, sbDelete, cargarDatos,
 });
 
+
+// ── Generador de PDF via Edge Function ──────────────────────
+const generarPDF = async (tipo, datos, mes, anio, cliente) => {
+  try {
+    const token = _wmsToken || SUPABASE_KEY;
+    const r = await fetch("https://wwlsewypxbxobhweyqbv.supabase.co/functions/v1/generar-pdf", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ tipo, datos, mes, anio, cliente }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const { html } = await r.json();
+    
+    // Abrir en nueva ventana e imprimir como PDF
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 800);
+  } catch(e) {
+    alert("Error generando PDF: " + e.message);
+  }
+};
+
+// ── Calcular reportes desde datos globales ───────────────────
+const calcularReporteAlmacenaje = (mesN, anioN, clienteId) => {
+  const primerDia = `${anioN}-${String(mesN).padStart(2,"0")}-01`;
+  const ultimoDia = new Date(anioN, mesN, 0).toISOString().split("T")[0];
+  
+  return STOCK.filter(s => {
+    const entrada = s.fecha_entrada || "";
+    const salida  = s.fecha_salida  || ultimoDia;
+    return entrada <= ultimoDia && salida >= primerDia && (!clienteId || s.cliente_id === clienteId);
+  }).map(s => {
+    const c = CLIENTES.find(c => c.id === s.cliente_id);
+    const t = TARIFAS.find(t => t.id === c?.tarifa_id);
+    const precioDia = parseFloat(t?.precio_pallet_dia || 0);
+    const entrada = new Date(Math.max(new Date(s.fecha_entrada), new Date(primerDia)));
+    const salida  = new Date(Math.min(new Date(s.fecha_salida||ultimoDia), new Date(ultimoDia)));
+    const dias    = Math.max(Math.round((salida - entrada) / 86400000) + 1, 0);
+    return {
+      cliente: c?.nombre || "—", empresa: c?.empresa || "—",
+      pallet: s.pallet, referencia: s.referencia || "—",
+      fecha_entrada: s.fecha_entrada, fecha_salida: s.fecha_salida,
+      dias, precio_dia: precioDia, coste: Math.round(dias * precioDia * 100) / 100,
+    };
+  });
+};
+
+const calcularReporteOperaciones = (mesN, anioN, tipos, clienteId) => {
+  const primerDia = `${anioN}-${String(mesN).padStart(2,"0")}-01`;
+  const ultimoDia = new Date(anioN, mesN, 0).toISOString().split("T")[0];
+  return MOVIMIENTOS.filter(m => {
+    const ok = m.fecha >= primerDia && m.fecha <= ultimoDia;
+    const tipoOk = !tipos || tipos.includes(m.tipo);
+    const cliOk  = !clienteId || m.cliente_id === clienteId;
+    return ok && tipoOk && cliOk;
+  }).map(m => {
+    const c = CLIENTES.find(c => c.id === m.cliente_id);
+    return { ...m, empresa: c?.empresa || "—", cliente: c?.nombre || "—" };
+  });
+};
+
+const calcularResumenMensual = (mesN, anioN) => {
+  return CLIENTES.map(c => {
+    const alm  = calcularReporteAlmacenaje(mesN, anioN, c.id);
+    const ops  = calcularReporteOperaciones(mesN, anioN, null, c.id);
+    const totalAlm  = alm.reduce((s,r) => s+r.coste, 0);
+    const pickCost  = ops.filter(o => ["picking","empaquetado"].includes(o.tipo)).reduce((s,o) => s+parseFloat(o.coste||0), 0);
+    const cargCost  = ops.filter(o => o.tipo==="carga").reduce((s,o) => s+parseFloat(o.coste||0), 0);
+    const descCost  = ops.filter(o => o.tipo==="descarga").reduce((s,o) => s+parseFloat(o.coste||0), 0);
+    const distCost  = ops.filter(o => o.tipo?.includes("distribucion")).reduce((s,o) => s+parseFloat(o.coste||0), 0);
+    const total = totalAlm + pickCost + cargCost + descCost + distCost;
+    const t = TARIFAS.find(t => t.id === c.tarifa_id);
+    if (total === 0 && alm.length === 0) return null;
+    return {
+      cliente_id: c.id, cliente: c.nombre, empresa: c.empresa || "—",
+      condiciones_pago: c.condiciones_pago || c.pago || "—",
+      tarifa: t?.nombre || "Sin tarifa",
+      pallets_almacenados: alm.length,
+      total_almacenaje: Math.round(totalAlm*100)/100,
+      picking_coste: Math.round(pickCost*100)/100,
+      cargas_coste: Math.round(cargCost*100)/100,
+      descargas_coste: Math.round(descCost*100)/100,
+      distribucion_coste: Math.round(distCost*100)/100,
+      total: Math.round(total*100)/100,
+      movimientos: ops,
+    };
+  }).filter(Boolean).sort((a,b) => b.total - a.total);
+};
+
+window.generarPDF = generarPDF;
+window.calcularReporteAlmacenaje = calcularReporteAlmacenaje;
+window.calcularReporteOperaciones = calcularReporteOperaciones;
+window.calcularResumenMensual = calcularResumenMensual;
+
 // ===== tweaks-panel.jsx =====
 
 // tweaks-panel.jsx
@@ -2027,7 +2127,13 @@ const Reportes = () => {
         <div><h1>Reportes</h1><p className="lead">Análisis y exportación de informes PDF</p></div>
         <div className="page-actions">
           <button className="btn btn-ghost">Abr 2026 ▾</button>
-          <button className="btn btn-primary"><Icon name="download"/> Generar PDF</button>
+          <button className="btn btn-primary" onClick={() => {
+            const hoy = new Date();
+            const mes = hoy.getMonth()+1;
+            const anio = hoy.getFullYear();
+            const datos = calcularResumenMensual(mes, anio);
+            generarPDF("resumen", datos, mes, anio, null);
+          }}><Icon name="download"/> Generar PDF Resumen</button>
         </div>
       </div>
 
@@ -2052,7 +2158,18 @@ const Reportes = () => {
             </div>
             <div style={{display:"flex", gap:8, marginTop:16}}>
               <button className="btn btn-ghost btn-sm" style={{flex:1}}>Ver detalle</button>
-              <button className="btn btn-ghost btn-sm"><Icon name="download"/></button>
+              <button className="btn btn-ghost btn-sm" onClick={() => {
+                const hoy = new Date();
+                const mes = hoy.getMonth()+1;
+                const anio = hoy.getFullYear();
+                if (r.t === "Almacenaje") {
+                  generarPDF("almacenaje", calcularReporteAlmacenaje(mes, anio, null), mes, anio, null);
+                } else if (r.t === "Picking/Packing") {
+                  generarPDF("picking", calcularReporteOperaciones(mes, anio, ["picking","empaquetado"], null), mes, anio, null);
+                } else {
+                  generarPDF("carga", calcularReporteOperaciones(mes, anio, ["carga","descarga"], null), mes, anio, null);
+                }
+              }}><Icon name="download"/></button>
             </div>
           </div>
         ))}
@@ -2088,7 +2205,13 @@ const Facturacion = ({ onPdf }) => {
         <div><h1>Facturación</h1><p className="lead">Resumen mensual por cliente · Abril 2026</p></div>
         <div className="page-actions">
           <button className="btn btn-ghost">Abr 2026 ▾</button>
-          <button className="btn btn-primary"><Icon name="download"/> Exportar todas</button>
+          <button className="btn btn-primary" onClick={() => {
+            const hoy = new Date();
+            const mes = hoy.getMonth()+1;
+            const anio = hoy.getFullYear();
+            const datos = calcularResumenMensual(mes, anio);
+            generarPDF("resumen", datos, mes, anio, null);
+          }}><Icon name="download"/> Exportar todas</button>
         </div>
       </div>
 
@@ -2122,7 +2245,21 @@ const Facturacion = ({ onPdf }) => {
                   <td className="mono num">{ops}</td>
                   <td className="mono num" style={{color:"var(--accent)", fontWeight:600}}>{fmt(c.facturado_mes)}</td>
                   <td className="muted">{c.pago}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => onPdf(c)}><Icon name="download"/> PDF</button></td>
+                  <td><button className="btn btn-ghost btn-sm" onClick={() => {
+  const hoy = new Date();
+  const mes = hoy.getMonth()+1;
+  const anio = hoy.getFullYear();
+  const resumen = calcularResumenMensual(mes, anio);
+  const datosCliente = resumen.find(r => r.cliente_id === c.id) || {
+    empresa: c.empresa, cliente: c.nombre,
+    condiciones_pago: c.pago||c.condiciones_pago,
+    tarifa: TARIFAS.find(t=>t.id===c.tarifa_id)?.nombre||"—",
+    pallets_almacenados:0,total_almacenaje:0,
+    picking_coste:0,cargas_coste:0,descargas_coste:0,distribucion_coste:0,total:0,
+    movimientos: MOVIMIENTOS.filter(m=>m.cliente_id===c.id),
+  };
+  generarPDF("factura", datosCliente, mes, anio, c);
+}}><Icon name="download"/> PDF</button></td>
                 </tr>
               );
             })}
@@ -2378,7 +2515,21 @@ const InvoicePreview = ({ cliente, onClose }) => {
         <div style={{padding:"16px 24px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
           <div className="card-title">Vista previa de factura · {cliente.empresa}</div>
           <div style={{display:"flex", gap:8}}>
-            <button className="btn btn-primary"><Icon name="download"/> Descargar PDF</button>
+            <button className="btn btn-primary" onClick={() => {
+              const hoy = new Date();
+              const mes = hoy.getMonth()+1;
+              const anio = hoy.getFullYear();
+              const resumen = calcularResumenMensual(mes, anio);
+              const datosCliente = resumen.find(r => r.cliente_id === cliente.id) || {
+                empresa: cliente.empresa, cliente: cliente.nombre,
+                condiciones_pago: cliente.pago || cliente.condiciones_pago,
+                tarifa: TARIFAS.find(t=>t.id===cliente.tarifa_id)?.nombre || "—",
+                pallets_almacenados: 0, total_almacenaje:0,
+                picking_coste:0, cargas_coste:0, descargas_coste:0, distribucion_coste:0, total:0,
+                movimientos: MOVIMIENTOS.filter(m=>m.cliente_id===cliente.id),
+              };
+              generarPDF("factura", datosCliente, mes, anio, cliente);
+            }}><Icon name="download"/> Descargar PDF</button>
             <button className="iconbtn" onClick={onClose}><Icon name="close"/></button>
           </div>
         </div>
