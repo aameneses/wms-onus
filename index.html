@@ -819,6 +819,7 @@ input, select, textarea { font-family: inherit; }
 <script type="text/babel" data-presets="react">
 
 
+
 // ===== data.jsx =====
 // ── Supabase API ─────────────────────────────────────────────
 const SUPABASE_URL = "https://wwlsewypxbxobhweyqbv.supabase.co";
@@ -1669,6 +1670,8 @@ Object.assign(window, { Icon, Sidebar, TopNav, Topbar, Toast, Drawer, Spark, NAV
 
 
 
+
+
 </script>
 <script type="text/babel" data-presets="react">
 // ===== dashboard.jsx =====
@@ -1708,8 +1711,10 @@ const Dashboard = ({ goTo }) => {
           <p className="lead">Resumen del almacén · {new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-ghost"><Icon name="download"/> Exportar</button>
-          <button className="btn btn-ghost">Hoy ▾</button>
+          <button className="btn btn-ghost" onClick={()=>{
+            const rows=MOVIMIENTOS.slice(0,50).map(m=>({Fecha:fmtFecha(m.fecha),Empresa:empresaPorCliente(m.cliente_id),Tipo:TIPO_OP[m.tipo]?.label||m.tipo,Cantidad:m.cantidad,Coste:m.coste}));
+            downloadCSV(fmtCSV(rows,["Fecha","Empresa","Tipo","Cantidad","Coste"]),"dashboard_export.csv");
+          }}><Icon name="download"/> Exportar CSV</button>
         </div>
       </div>
 
@@ -2259,6 +2264,8 @@ const TarifaForm = ({tarifa, onClose, onSaved}) => {
     precio_picking:tarifa?.precio_picking||0,
     precio_carga:tarifa?.precio_carga||0,
     precio_descarga:tarifa?.precio_descarga||0,
+    precio_distribucion:tarifa?.precio_distribucion||0,
+    precio_viaje:tarifa?.precio_viaje||0,
   });
   const [loading, setLoading] = React.useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -2268,13 +2275,15 @@ const TarifaForm = ({tarifa, onClose, onSaved}) => {
     {key:"precio_picking",label:"Picking/Empaquetado €/ud"},
     {key:"precio_carga",label:"Carga €/operación"},
     {key:"precio_descarga",label:"Descarga €/operación"},
+    {key:"precio_distribucion",label:"Distribución €/hora"},
+    {key:"precio_viaje",label:"Viaje fijo €"},
   ];
 
   const guardar = async () => {
     if(!form.nombre){alert("El nombre es obligatorio");return;}
     setLoading(true);
     try {
-      const data={...form,precio_pallet_dia:parseFloat(form.precio_pallet_dia),precio_picking:parseFloat(form.precio_picking),precio_carga:parseFloat(form.precio_carga),precio_descarga:parseFloat(form.precio_descarga)};
+      const data={...form,precio_pallet_dia:parseFloat(form.precio_pallet_dia),precio_picking:parseFloat(form.precio_picking),precio_carga:parseFloat(form.precio_carga),precio_descarga:parseFloat(form.precio_descarga),precio_distribucion:parseFloat(form.precio_distribucion||0),precio_viaje:parseFloat(form.precio_viaje||0)};
       if(tarifa) await sbPatch("tarifas",tarifa.id,data);
       else await sbPost("tarifas",data);
       onSaved();
@@ -2800,316 +2809,133 @@ Object.assign(window, { NewOpDrawer, Scanner, StockDetail, OpDetail, InvoicePrev
 
 
 // ===== perfiles.jsx =====
-// ============================================================
-// Onus WMS — Perfiles (gestión de usuarios + roles + permisos)
-// ============================================================
-
-const PERFILES = [
-  { id: 1, nombre: "Alejandro Meneses", email: "alejandro@onusexpress.com", rol: "Administrador", estado: "activo",   ultimo: "Hace 2 min",  iniciales: "AM", color: "#00C9CE" },
-  { id: 2, nombre: "Marta Ruiz",         email: "marta.ruiz@onusexpress.com",     rol: "Operaciones",   estado: "activo",   ultimo: "Hace 18 min", iniciales: "MR", color: "#5b8def" },
-  { id: 3, nombre: "Javier López",       email: "javier.lopez@onusexpress.com",   rol: "Almacén",       estado: "activo",   ultimo: "Hace 1 h",    iniciales: "JL", color: "#a78bfa" },
-  { id: 4, nombre: "Sofía Romero",       email: "sofia.romero@onusexpress.com",   rol: "Facturación",   estado: "activo",   ultimo: "Hace 3 h",    iniciales: "SR", color: "#f59e0b" },
-  { id: 5, nombre: "Daniel Vega",        email: "daniel.vega@onusexpress.com",    rol: "Almacén",       estado: "activo",   ultimo: "Ayer 17:42",  iniciales: "DV", color: "#ec4899" },
-  { id: 6, nombre: "Carmen Ortiz",       email: "carmen.ortiz@onusexpress.com",   rol: "Lectura",       estado: "invitado", ultimo: "—",           iniciales: "CO", color: "#10b981" },
-  { id: 7, nombre: "Rubén Castro",       email: "ruben.castro@onusexpress.com",   rol: "Operaciones",   estado: "inactivo", ultimo: "Hace 12 días",iniciales: "RC", color: "#6b7280" },
-];
-
 const ROLES = [
-  { id: "admin",  nombre: "Administrador", desc: "Acceso total al sistema, gestión de perfiles, tarifas y facturación.", usuarios: 1, color: "#00C9CE",
-    permisos: { dashboard:"todo", operaciones:"todo", stock:"todo", clientes:"todo", tarifas:"todo", reportes:"todo", facturacion:"todo", perfiles:"todo" }},
-  { id: "ops",    nombre: "Operaciones",   desc: "Registra movimientos, gestiona stock y consulta clientes.",            usuarios: 2, color: "#5b8def",
-    permisos: { dashboard:"ver",  operaciones:"todo", stock:"todo", clientes:"ver",  tarifas:"ver",  reportes:"ver",  facturacion:"no",   perfiles:"no" }},
-  { id: "alm",    nombre: "Almacén",       desc: "Entradas/salidas de pallets y escaneo de códigos de barra.",           usuarios: 2, color: "#a78bfa",
-    permisos: { dashboard:"ver",  operaciones:"crear", stock:"todo", clientes:"ver", tarifas:"no",   reportes:"no",   facturacion:"no",   perfiles:"no" }},
-  { id: "fact",   nombre: "Facturación",   desc: "Genera informes y facturas, gestiona tarifas y clientes.",             usuarios: 1, color: "#f59e0b",
-    permisos: { dashboard:"ver",  operaciones:"ver",  stock:"ver",  clientes:"todo", tarifas:"todo", reportes:"todo", facturacion:"todo", perfiles:"no" }},
-  { id: "lect",   nombre: "Lectura",       desc: "Solo consulta de información, sin permisos de edición.",                usuarios: 1, color: "#10b981",
-    permisos: { dashboard:"ver",  operaciones:"ver",  stock:"ver",  clientes:"ver",  tarifas:"ver",  reportes:"ver",  facturacion:"ver",  perfiles:"no" }},
+  { id:"admin", nombre:"Administrador", desc:"Acceso total al sistema.", color:"#00C9CE",
+    permisos:{dashboard:"todo",operaciones:"todo",stock:"todo",clientes:"todo",tarifas:"todo",reportes:"todo",facturacion:"todo",perfiles:"todo"}},
+  { id:"ops",   nombre:"Operaciones",   desc:"Registra movimientos y gestiona stock.", color:"#5b8def",
+    permisos:{dashboard:"ver",operaciones:"todo",stock:"todo",clientes:"ver",tarifas:"ver",reportes:"ver",facturacion:"no",perfiles:"no"}},
+  { id:"alm",   nombre:"Almacén",       desc:"Entradas/salidas de pallets.", color:"#a78bfa",
+    permisos:{dashboard:"ver",operaciones:"crear",stock:"todo",clientes:"ver",tarifas:"no",reportes:"no",facturacion:"no",perfiles:"no"}},
+  { id:"fact",  nombre:"Facturación",   desc:"Genera informes y facturas.", color:"#f59e0b",
+    permisos:{dashboard:"ver",operaciones:"ver",stock:"ver",clientes:"todo",tarifas:"todo",reportes:"todo",facturacion:"todo",perfiles:"no"}},
+  { id:"lect",  nombre:"Lectura",       desc:"Solo consulta, sin edición.", color:"#10b981",
+    permisos:{dashboard:"ver",operaciones:"ver",stock:"ver",clientes:"ver",tarifas:"ver",reportes:"ver",facturacion:"ver",perfiles:"no"}},
 ];
-
-const PERMISO_TXT = {
-  todo: { label: "Total", color: "var(--accent)" },
-  crear: { label: "Crear", color: "#5b8def" },
-  ver: { label: "Ver", color: "var(--fg-2)" },
-  no: { label: "—", color: "var(--fg-3)" },
-};
-
-const MODULOS_PERM = [
-  { id: "dashboard", label: "Dashboard" },
-  { id: "operaciones", label: "Operaciones" },
-  { id: "stock", label: "Stock" },
-  { id: "clientes", label: "Clientes" },
-  { id: "tarifas", label: "Tarifas" },
-  { id: "reportes", label: "Reportes" },
-  { id: "facturacion", label: "Facturación" },
-  { id: "perfiles", label: "Perfiles" },
-];
+const PERMISO_TXT = { todo:{label:"Total",color:"var(--accent)"}, crear:{label:"Crear",color:"#5b8def"}, ver:{label:"Ver",color:"var(--fg-2)"}, no:{label:"—",color:"var(--fg-3)"} };
+const MODULOS_PERM = ["dashboard","operaciones","stock","clientes","tarifas","reportes","facturacion","perfiles"];
 
 const Perfiles = ({ onInvite, onEdit }) => {
   const [tab, setTab] = React.useState("usuarios");
-  const [q, setQ] = React.useState("");
-  const [rol, setRol] = React.useState("todos");
+  const [q, setQ]     = React.useState("");
+  const [usuarios, setUsuarios] = React.useState([]);
+  const [loading, setLoading]   = React.useState(true);
+  const [, rerender] = React.useReducer(x=>x+1,0);
 
-  const usuarios = PERFILES.filter(u => {
-    if (q && !`${u.nombre} ${u.email}`.toLowerCase().includes(q.toLowerCase())) return false;
-    if (rol !== "todos" && u.rol !== rol) return false;
-    return true;
-  });
+  const cargarUsuarios = async () => {
+    setLoading(true);
+    try {
+      // Supabase admin users list via REST
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${_wmsToken||SUPABASE_KEY}`}
+      });
+      const data = await r.json();
+      const perfs = await sbGet("perfiles","?select=*");
+      const perfsMap = Object.fromEntries((perfs||[]).map(p=>[p.id,p]));
+      const us = (data.users||[]).map(u=>({
+        id: u.id,
+        email: u.email,
+        nombre: perfsMap[u.id]?.nombre || u.email?.split("@")[0] || "—",
+        rol: perfsMap[u.id]?.rol || "operario",
+        created_at: u.created_at,
+        last_sign_in: u.last_sign_in_at,
+      }));
+      setUsuarios(us);
+    } catch(e){ console.error(e); }
+    finally{ setLoading(false); }
+  };
+
+  React.useEffect(()=>{ cargarUsuarios(); },[]);
+
+  const filtrados = usuarios.filter(u=> !q || `${u.nombre} ${u.email}`.toLowerCase().includes(q.toLowerCase()));
+
+  const exportar = () => {
+    const cols=["Email","Nombre","Rol","Creado"];
+    downloadCSV(fmtCSV(filtrados.map(u=>({Email:u.email,Nombre:u.nombre,Rol:u.rol,Creado:fmtFecha(u.created_at)})),cols),"perfiles.csv");
+  };
 
   return (
     <div className="page">
       <div className="page-head">
-        <div>
-          <h1>Perfiles</h1>
-          <p className="lead">Gestión de usuarios, roles y permisos del sistema</p>
-        </div>
+        <div><h1>Perfiles</h1><p className="lead">Usuarios registrados en el sistema · {usuarios.length} cuentas</p></div>
         <div className="page-actions">
-          <button className="btn btn-ghost"><Icon name="download"/> Exportar</button>
-          <button className="btn btn-primary" onClick={onInvite}><Icon name="plus"/> Invitar usuario</button>
+          <button className="btn btn-ghost" onClick={exportar}><Icon name="download"/> Exportar</button>
+          <button className="btn btn-primary" onClick={()=>onInvite()}><Icon name="plus"/> Invitar usuario</button>
         </div>
       </div>
 
-      <div className="kpi-grid" style={{gridTemplateColumns:"repeat(4,1fr)"}}>
-        <div className="kpi"><div className="label">Usuarios totales</div><div className="value">{PERFILES.length}</div><div className="delta">{PERFILES.filter(p=>p.estado==="activo").length} activos</div></div>
-        <div className="kpi"><div className="label">Roles configurados</div><div className="value">{ROLES.length}</div><div className="delta">1 con acceso total</div></div>
-        <div className="kpi"><div className="label">Pendientes</div><div className="value">{PERFILES.filter(p=>p.estado==="invitado").length}</div><div className="delta">invitaciones sin aceptar</div></div>
-        <div className="kpi"><div className="label">Sesiones hoy</div><div className="value">12</div><div className="delta up">↑ 3 vs ayer</div></div>
+      <div className="kpi-grid" style={{gridTemplateColumns:"repeat(3,1fr)"}}>
+        <div className="kpi"><div className="label">Usuarios totales</div><div className="value">{usuarios.length}</div></div>
+        <div className="kpi"><div className="label">Roles disponibles</div><div className="value">{ROLES.length}</div></div>
+        <div className="kpi"><div className="label">Último acceso</div><div className="value" style={{fontSize:14}}>{usuarios.find(u=>u.last_sign_in)?.email?.split("@")[0]||"—"}</div></div>
       </div>
 
       <div className="tabs">
-        <button className={`tab ${tab==="usuarios"?"active":""}`} onClick={()=>setTab("usuarios")}>Usuarios · {PERFILES.length}</button>
-        <button className={`tab ${tab==="roles"?"active":""}`} onClick={()=>setTab("roles")}>Roles y permisos · {ROLES.length}</button>
-        <button className={`tab ${tab==="actividad"?"active":""}`} onClick={()=>setTab("actividad")}>Actividad reciente</button>
+        <button className={`tab ${tab==="usuarios"?"active":""}`} onClick={()=>setTab("usuarios")}>Usuarios · {usuarios.length}</button>
+        <button className={`tab ${tab==="roles"?"active":""}`} onClick={()=>setTab("roles")}>Roles · {ROLES.length}</button>
       </div>
 
-      {tab === "usuarios" && (
+      {tab==="usuarios" && (
         <div className="tbl-wrap">
           <div className="tbl-toolbar">
             <input className="grow" placeholder="Buscar por nombre o email…" value={q} onChange={e=>setQ(e.target.value)}/>
-            <select value={rol} onChange={e=>setRol(e.target.value)}>
-              <option value="todos">Todos los roles</option>
-              {ROLES.map(r => <option key={r.id} value={r.nombre}>{r.nombre}</option>)}
-            </select>
-            <span className="count">{usuarios.length} usuarios</span>
+            <span className="count">{filtrados.length} usuarios</span>
           </div>
+          {loading ? <div style={{padding:32,textAlign:"center",color:"var(--fg-3)"}}>Cargando usuarios…</div> : (
           <table className="tbl">
-            <thead>
-              <tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Última actividad</th><th></th></tr>
-            </thead>
+            <thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
             <tbody>
-              {usuarios.map(u => (
-                <tr key={u.id} onClick={() => onEdit(u)}>
-                  <td>
-                    <div style={{display:"flex", alignItems:"center", gap:10}}>
-                      <div className="avatar" style={{background:`linear-gradient(135deg, ${u.color}, ${u.color}aa)`, width:30, height:30, fontSize:11}}>{u.iniciales}</div>
-                      <div style={{fontWeight:500}}>{u.nombre}</div>
+              {filtrados.map(u=>(
+                <tr key={u.id}>
+                  <td><div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div className="avatar" style={{width:30,height:30,fontSize:11,background:"linear-gradient(135deg,#00C9CE,#5b8def)"}}>
+                      {(u.nombre||"?")[0].toUpperCase()}
                     </div>
-                  </td>
+                    <div style={{fontWeight:500}}>{u.nombre}</div>
+                  </div></td>
                   <td className="muted mono" style={{fontSize:12}}>{u.email}</td>
-                  <td><span className="chip">{u.rol}</span></td>
-                  <td>
-                    {u.estado === "activo" && <span className="chip-status activo"><span className="d"/> activo</span>}
-                    {u.estado === "invitado" && <span className="chip-status" style={{background:"rgba(245,158,11,.15)", color:"#f59e0b"}}><span className="d"/> invitado</span>}
-                    {u.estado === "inactivo" && <span className="chip-status salido"><span className="d"/> inactivo</span>}
-                  </td>
-                  <td className="muted mono" style={{fontSize:12}}>{u.ultimo}</td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={(e)=>{e.stopPropagation(); onEdit(u);}}><Icon name="edit"/></button></td>
+                  <td><span className="chip">{ROLES.find(r=>r.id===u.rol)?.nombre||u.rol}</span></td>
+                  <td className="muted mono" style={{fontSize:12}}>{fmtFecha(u.created_at)}</td>
+                  <td><button className="btn btn-ghost btn-sm" onClick={()=>onEdit({...u,_reload:cargarUsuarios})}><Icon name="edit"/></button></td>
                 </tr>
               ))}
             </tbody>
           </table>
+          )}
         </div>
       )}
 
-      {tab === "roles" && (
-        <>
-          <div className="grid-2" style={{marginBottom:20}}>
-            {ROLES.map(r => (
-              <div className="card" key={r.id}>
-                <div className="card-head">
-                  <div style={{display:"flex", alignItems:"center", gap:10}}>
-                    <div style={{width:8, height:32, background:r.color, borderRadius:2}}/>
-                    <div>
-                      <h3 style={{color:"var(--fg-0)"}}>{r.nombre}</h3>
-                      <div className="card-sub">{r.usuarios} usuario{r.usuarios!==1?"s":""}</div>
-                    </div>
-                  </div>
-                  <button className="btn btn-ghost btn-sm"><Icon name="edit"/></button>
-                </div>
-                <p style={{fontSize:13, color:"var(--fg-2)", margin:"8px 0 12px"}}>{r.desc}</p>
-                <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                  {Object.entries(r.permisos).filter(([_,v]) => v !== "no").map(([k,v]) => (
-                    <span key={k} className="chip" style={{textTransform:"capitalize"}}>
-                      {k} · <span style={{color: PERMISO_TXT[v].color, marginLeft:4}}>{PERMISO_TXT[v].label}</span>
-                    </span>
-                  ))}
+      {tab==="roles" && (
+        <div className="grid-2">
+          {ROLES.map(r=>(
+            <div className="card" key={r.id}>
+              <div className="card-head">
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:8,height:32,background:r.color,borderRadius:2}}/>
+                  <div><h3 style={{color:"var(--fg-0)"}}>{r.nombre}</h3><div className="card-sub">{r.desc}</div></div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="card" style={{padding:0}}>
-            <div className="card-head" style={{padding:"20px 24px 0"}}>
-              <div className="card-title">Matriz de permisos</div>
-              <button className="btn btn-primary btn-sm"><Icon name="plus"/> Nuevo rol</button>
-            </div>
-            <table className="tbl" style={{marginTop:14}}>
-              <thead>
-                <tr>
-                  <th>Módulo</th>
-                  {ROLES.map(r => <th key={r.id} style={{textAlign:"center"}}>{r.nombre}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {MODULOS_PERM.map(m => (
-                  <tr key={m.id}>
-                    <td style={{fontWeight:500}}>{m.label}</td>
-                    {ROLES.map(r => {
-                      const p = PERMISO_TXT[r.permisos[m.id]];
-                      return (
-                        <td key={r.id} style={{textAlign:"center"}}>
-                          <span style={{display:"inline-block", padding:"3px 10px", borderRadius:4, fontSize:11, fontWeight:600, color: p.color, background: r.permisos[m.id] === "no" ? "transparent" : "var(--bg-3)"}}>
-                            {p.label}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+                {Object.entries(r.permisos).filter(([_,v])=>v!=="no").map(([k,v])=>(
+                  <span key={k} className="chip" style={{textTransform:"capitalize"}}>{k} · <span style={{color:PERMISO_TXT[v].color}}>{PERMISO_TXT[v].label}</span></span>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {tab === "actividad" && (
-        <div className="card" style={{padding:0}}>
-          <table className="tbl">
-            <thead><tr><th>Usuario</th><th>Acción</th><th>Recurso</th><th>Cuándo</th></tr></thead>
-            <tbody>
-              {[
-                { u:"Alejandro Meneses", a:"Inició sesión", r:"—",                          c:"Hace 2 min" },
-                { u:"Marta Ruiz",        a:"Registró operación", r:"Picking · Pedido #1042", c:"Hace 18 min" },
-                { u:"Javier López",      a:"Entrada de pallet",  r:"PAL-00148 · Ubicación C-08-03", c:"Hace 1 h" },
-                { u:"Sofía Romero",      a:"Generó factura PDF", r:"Almacenes Ibéricos · Abr 2026", c:"Hace 3 h" },
-                { u:"Marta Ruiz",        a:"Actualizó tarifa",   r:"Tarifa Premium",          c:"Ayer 16:30" },
-                { u:"Daniel Vega",       a:"Salida de pallet",   r:"PAL-00154",                c:"Ayer 14:12" },
-                { u:"Alejandro Meneses", a:"Invitó usuario",     r:"carmen.ortiz@onusexpress.com", c:"Ayer 11:08" },
-              ].map((e,i) => {
-                const u = PERFILES.find(p => p.nombre === e.u);
-                return (
-                  <tr key={i}>
-                    <td>
-                      <div style={{display:"flex", alignItems:"center", gap:10}}>
-                        <div className="avatar" style={{background:`linear-gradient(135deg, ${u?.color || "#5b8def"}, ${u?.color || "#5b8def"}aa)`, width:26, height:26, fontSize:10}}>{u?.iniciales || "?"}</div>
-                        <span style={{fontWeight:500}}>{e.u}</span>
-                      </div>
-                    </td>
-                    <td>{e.a}</td>
-                    <td className="muted">{e.r}</td>
-                    <td className="muted mono" style={{fontSize:12}}>{e.c}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 };
-
-const PerfilDrawer = ({ open, perfil, onClose, onSave, mode }) => {
-  const [nombre, setNombre] = React.useState(perfil?.nombre || "");
-  const [email, setEmail]   = React.useState(perfil?.email  || "");
-  const [rol, setRol]       = React.useState(perfil?.rol    || "Lectura");
-  const [estado, setEstado] = React.useState(perfil?.estado || "invitado");
-
-  React.useEffect(() => {
-    setNombre(perfil?.nombre || "");
-    setEmail(perfil?.email  || "");
-    setRol(perfil?.rol      || "Lectura");
-    setEstado(perfil?.estado|| "invitado");
-  }, [perfil, open]);
-
-  const rolObj = ROLES.find(r => r.nombre === rol);
-
-  return (
-    <Drawer open={open} onClose={onClose}
-      title={mode === "new" ? "Invitar usuario" : `Editar perfil`}
-      footer={<>
-        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        {mode !== "new" && <button className="btn btn-ghost" style={{color:"var(--danger)"}}><Icon name="trash"/> Eliminar</button>}
-        <button className="btn btn-primary" onClick={() => onSave({nombre, email, rol, estado})}>
-          <Icon name="check"/> {mode === "new" ? "Enviar invitación" : "Guardar cambios"}
-        </button>
-      </>}>
-      {perfil && mode !== "new" && (
-        <div style={{display:"flex", alignItems:"center", gap:14, marginBottom:20, paddingBottom:18, borderBottom:"1px solid var(--border)"}}>
-          <div className="avatar" style={{width:56, height:56, fontSize:18, background:`linear-gradient(135deg, ${perfil.color}, ${perfil.color}aa)`}}>{perfil.iniciales}</div>
-          <div>
-            <div style={{fontWeight:600, fontSize:16}}>{perfil.nombre}</div>
-            <div style={{fontSize:12, color:"var(--fg-3)"}}>Última actividad: {perfil.ultimo}</div>
-          </div>
-        </div>
-      )}
-
-      <div className="field">
-        <label>Nombre completo</label>
-        <input value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre y apellidos"/>
-      </div>
-      <div className="field">
-        <label>Email corporativo</label>
-        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="usuario@onusexpress.com"/>
-      </div>
-      <div className="field">
-        <label>Rol</label>
-        <select value={rol} onChange={e=>setRol(e.target.value)}>
-          {ROLES.map(r => <option key={r.id} value={r.nombre}>{r.nombre}</option>)}
-        </select>
-        {rolObj && <div style={{fontSize:12, color:"var(--fg-3)", marginTop:6}}>{rolObj.desc}</div>}
-      </div>
-      {mode !== "new" && (
-        <div className="field">
-          <label>Estado</label>
-          <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6}}>
-            {["activo","invitado","inactivo"].map(s => (
-              <button key={s}
-                onClick={() => setEstado(s)}
-                className={`btn btn-sm ${estado===s?"btn-primary":"btn-ghost"}`}
-                style={{justifyContent:"center", textTransform:"capitalize"}}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {rolObj && (
-        <div style={{marginTop:18, padding:16, background:"var(--bg-3)", borderRadius:"var(--r-md)", border:"1px solid var(--border)"}}>
-          <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12}}>
-            <Icon name="shield"/>
-            <div className="card-title">Permisos del rol · {rolObj.nombre}</div>
-          </div>
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:6}}>
-            {MODULOS_PERM.map(m => {
-              const p = PERMISO_TXT[rolObj.permisos[m.id]];
-              return (
-                <div key={m.id} style={{display:"flex", justifyContent:"space-between", padding:"6px 10px", background:"var(--bg-2)", borderRadius:"var(--r-sm)", fontSize:12}}>
-                  <span style={{color:"var(--fg-2)"}}>{m.label}</span>
-                  <span style={{color: p.color, fontWeight:600}}>{p.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </Drawer>
-  );
-};
-
-Object.assign(window, { Perfiles, PerfilDrawer, PERFILES, ROLES });
-
 
 // ===== app.jsx =====
 // ============================================================
@@ -3203,9 +3029,28 @@ const App = ({ session, onLogout } = {}) => {
         perfil={perfilOpen?.perfil}
         mode={perfilOpen?.mode}
         onClose={() => setPerfilOpen(null)}
-        onSave={(data) => {
-          setPerfilOpen(null);
-          showToast(perfilOpen?.mode === "new" ? `Invitación enviada a ${data.email}` : `Perfil de ${data.nombre} actualizado`);
+        onSave={async (data) => {
+          try {
+            if (perfilOpen?.mode === "new") {
+              // Invite via Supabase Auth Admin
+              const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+                method:"POST",
+                headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${_wmsToken}`, "Content-Type":"application/json"},
+                body:JSON.stringify({email:data.email,password:data.password||Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2).toUpperCase()+"1!",email_confirm:true})
+              });
+              const newUser = await r.json();
+              if(newUser.id) {
+                await sbPost("perfiles",{id:newUser.id,nombre:data.nombre||data.email,rol:data.rol||"ops"});
+              }
+              showToast(`Usuario ${data.email} creado`);
+            } else {
+              // Update perfil
+              await sbPatch("perfiles", perfilOpen.perfil.id, {nombre:data.nombre,rol:data.rol});
+              if(perfilOpen.perfil._reload) perfilOpen.perfil._reload();
+              showToast(`Perfil actualizado`);
+            }
+            setPerfilOpen(null);
+          } catch(e){ showToast("Error: "+e.message); }
         }}/>
 
       <Toast msg={toast}/>
@@ -3290,6 +3135,7 @@ const WMSRoot=()=>{
 };
 
 ReactDOM.createRoot(document.getElementById("root")).render(<WMSRoot/>);
+
 
 
 
