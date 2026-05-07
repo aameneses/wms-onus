@@ -1656,8 +1656,8 @@ const Drawer = ({ open, onClose, title, children, footer }) => {
 const Spark = ({ data, color = "var(--accent)" }) => {
   const w = 100, h = 40, max = Math.max(...data), min = Math.min(...data);
   const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / Math.max(max - min, 1)) * (h - 6) - 3;
+    const x = data.length <= 1 ? 0 : (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / Math.max(max - min, 0.001)) * (h - 6) - 3;
     return `${x},${y}`;
   }).join(" ");
   return (
@@ -2828,7 +2828,12 @@ const ROLES = [
     permisos:{dashboard:"ver",operaciones:"ver",stock:"ver",clientes:"ver",tarifas:"ver",reportes:"ver",facturacion:"ver",perfiles:"no"}},
 ];
 const PERMISO_TXT = { todo:{label:"Total",color:"var(--accent)"}, crear:{label:"Crear",color:"#5b8def"}, ver:{label:"Ver",color:"var(--fg-2)"}, no:{label:"—",color:"var(--fg-3)"} };
-const MODULOS_PERM = ["dashboard","operaciones","stock","clientes","tarifas","reportes","facturacion","perfiles"];
+const MODULOS_PERM = [
+  {id:"dashboard",label:"Dashboard"},{id:"operaciones",label:"Operaciones"},
+  {id:"stock",label:"Stock"},{id:"clientes",label:"Clientes"},
+  {id:"tarifas",label:"Tarifas"},{id:"reportes",label:"Reportes"},
+  {id:"facturacion",label:"Facturación"},{id:"perfiles",label:"Perfiles"},
+];
 
 const Perfiles = ({ onInvite, onEdit }) => {
   const [tab, setTab] = React.useState("usuarios");
