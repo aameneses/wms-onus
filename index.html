@@ -528,12 +528,13 @@ const Icon = ({n, s=16}) => {
 
 // ── Sparkline SVG ─────────────────────────────────────────────────
 const Sparkline = ({data=[], color="#00C9CE", h=40, w=100}) => {
-  if(!data.length) return null;
-  const max = Math.max(...data, 0.001);
-  const pts = data.map((v,i)=>{
-    const x = data.length < 2 ? w/2 : (i/(data.length-1))*w;
+  if(!data||!data.length) return null;
+  const safeData = data.map(v=>isNaN(v)||!isFinite(v)?0:v);
+  const max = Math.max(...safeData, 0.001);
+  const pts = safeData.map((v,i)=>{
+    const x = safeData.length < 2 ? w/2 : (i/Math.max(safeData.length-1,1))*w;
     const y = h - (v/max)*(h-4) - 2;
-    return `${isNaN(x)?0:x},${isNaN(y)?h:y}`;
+    return `${isNaN(x)||!isFinite(x)?0:x.toFixed(2)},${isNaN(y)||!isFinite(y)?h:y.toFixed(2)}`;
   }).join(" ");
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="kpi-sparkline">
@@ -550,7 +551,7 @@ const DonutChart = ({data=[], size=80, total=0}) => {
   const slices = data.map(d=>{
     const pct = d.pct/100;
     const dash = pct*circ;
-    const s = {offset, dash, color:d.color};
+    const s = {offset, dash, color:d?.color||'#00C9CE'};
     offset += dash;
     return s;
   });
@@ -628,10 +629,10 @@ const Dashboard = ({onNew, onPage}) => {
 
       <div className="kpi-grid kpi-grid-4">
         {[
-          {l:"Ops hoy",v:KPI.ops_hoy,kc:"var(--accent)",s:spark,sc:"#00C9CE",ico:"⚡"},
-          {l:"Pallets activos",v:KPI.pallets_activos,kc:"var(--blue)",s:STOCK.filter(x=>x.activo).slice(-14).map((_,i)=>i+1),sc:"#5b8def",ico:"📦"},
-          {l:"Ingresos hoy",v:fmt(KPI.ingresos_hoy),kc:"var(--amber)",s:sparkIngresos,sc:"#f59e0b",ico:"💶"},
-          {l:`Ocupación almacén`,v:`${KPI.ocupacion}%`,kc:"var(--purple)",delta:`${KPI.pallets_activos} pallets · ${CLIENTES.filter(c=>c._pallets>0).length} clientes`,sc:"#a78bfa",ico:"🏭"},
+          {l:"Ops hoy",v:KPI?.ops_hoy||0,kc:"var(--accent)",s:spark,sc:"#00C9CE",ico:"⚡"},
+          {l:"Pallets activos",v:KPI?.pallets_activos||0,kc:"var(--blue)",s:STOCK.filter(x=>x.activo).slice(-14).map((_,i)=>i+1),sc:"#5b8def",ico:"📦"},
+          {l:"Ingresos hoy",v:fmt(KPI?.ingresos_hoy||0),kc:"var(--amber)",s:sparkIngresos,sc:"#f59e0b",ico:"💶"},
+          {l:`Ocupación almacén`,v:`${KPI?.ocupacion||0}%`,kc:"var(--purple)",delta:`${KPI?.pallets_activos||0} pallets · ${CLIENTES.filter(c=>c._pallets>0).length} clientes`,sc:"#a78bfa",ico:"🏭"},
         ].map((k,i)=>(
           <div key={i} className="kpi" style={{"--kc":k.kc}}>
             <div className="kpi-label"><div className="kpi-dot"/>{k.l}</div>
@@ -655,22 +656,22 @@ const Dashboard = ({onNew, onPage}) => {
               <span style={{color:"var(--amber)"}}>● Carga</span>
             </div>
           </div>
-          <BarChart14d/>
+          <BarChart14d data={SERIE_14D||[]}/>
         </div>
 
         <div className="card">
           <div className="card-head">
             <div>
               <div className="card-title">Distribución por tipo</div>
-              <div className="card-sub">Mes actual · {KPI.ops_mes} ops</div>
+              <div className="card-sub">Mes actual · {KPI?.ops_mes||0} ops</div>
             </div>
           </div>
           <div className="donut-wrap">
-            <DonutChart data={DIST_TIPOS} total={KPI.ops_mes}/>
+            <DonutChart data={DIST_TIPOS||[]} total={KPI?.ops_mes||0}/>
             <div className="legend">
-              {DIST_TIPOS.slice(0,6).map((d,i)=>(
+              {(DIST_TIPOS||[]).slice(0,6).map((d,i)=>(
                 <div key={i} className="leg-row">
-                  <div className="leg-dot" style={{background:d.color}}/>
+                  <div className="leg-dot" style={{background:d?.color||"#00C9CE"}}/>
                   <span className="leg-lbl">{TIPOS[d.tipo]?.l||d.tipo}</span>
                   <span className="leg-cnt">{d.cnt}</span>
                   <span className="leg-pct">{d.pct}%</span>
@@ -711,7 +712,7 @@ const Dashboard = ({onNew, onPage}) => {
           <div className="card-head">
             <div>
               <div className="card-title">Top clientes · mes</div>
-              <div className="card-sub">{fmt(KPI.ingresos_mes)} facturado</div>
+              <div className="card-sub">{fmt(KPI?.ingresos_mes||0)} facturado</div>
             </div>
             <button className="btn btn-ghost btn-xs" onClick={()=>onPage("clientes")}>Ver todos →</button>
           </div>
@@ -732,7 +733,7 @@ const Dashboard = ({onNew, onPage}) => {
           )}
           <div className="total-box" style={{marginTop:14}}>
             <div><div className="total-label">Total mes actual</div></div>
-            <div className="total-amount">{fmt(KPI.ingresos_mes)}</div>
+            <div className="total-amount">{fmt(KPI?.ingresos_mes||0)}</div>
           </div>
         </div>
       </div>
